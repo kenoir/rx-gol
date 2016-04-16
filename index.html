@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang='en-GB'>
+<head>
+  <meta charset='utf-8'>
+
+  <title>rx-gol</title>
+  <style>
+    td { 
+      width: 18px;
+    }
+    .alive { background-color: green }
+    .dead { background-color: red }
+  </style>
+</head>
+
+<body>
+  <h1>rx-gol</h1>
+
+  <div id='container'></div>
+
+  <script id='template' type='text/ractive'>
+    <table>
+      {{#each rows:i}}
+      <tr>
+        {{#each rows[i]:j}}
+        <td class={{rows[i][j] ? "alive" : "dead" }}>&nbsp;</td>
+        {{/each}}
+      </tr>
+      {{/each}}
+    </table> 
+  </script>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/rxjs/4.1.0/rx.all.js"></script>
+  <script src='http://cdn.ractivejs.org/latest/ractive.min.js'></script>
+  
+  <script>
+    //TODO: Allow cell to access neighbouring cohort state
+    const cellFactory = (tick$) => {
+      const initialState$ = Rx.Observable.just(Boolean(Math.random() < 0.5));
+  
+      const nextState$ = tick$.map(_ => true);
+      const state$ = initialState$.concat(nextState$);
+          
+      return state$;
+    };
+
+    const worldFactory = (w, h) => {
+      const rows = Array.apply(0, Array(w));
+      const cols = Array.apply(0, Array(h));
+
+      const tick$ = Rx.Observable
+        .interval(500)
+        .timeInterval()
+        .take(100)
+
+      const grid = cols
+        .map(_ => rows.map(_ => cellFactory(tick$))); 
+
+      const state$ = Rx.Observable
+        .zip(grid.map(rows => Rx.Observable.zip(...rows)));
+        
+      return state$;
+    };
+
+    const source = Rx.Observable.empty();
+    
+    const ractive = new Ractive({
+      el: '#container',
+      template: '#template'
+    });
+    
+
+    const world = worldFactory(25,25);
+
+    world.subscribe(rows => {
+      console.log(rows);
+
+      ractive.set('rows', rows);
+    }); 
+  </script>
+</body>
+</html>
