@@ -34,10 +34,17 @@
   <script src='http://cdn.ractivejs.org/latest/ractive.min.js'></script>
   
   <script>
-    //TODO: Allow cell to access neighbouring cohort state
+    const grid$ = new Rx.ReplaySubject();
+
     const cellFactory = (tick$) => {
       const initialState$ = Rx.Observable.just(Boolean(Math.random() < 0.5));
   
+      // TODO: work out how to turn set of neighbours (which are observables)
+      // into observable  counting alive cells in that cohort
+      // also obvs we need the cell reference here to do so (or push this responsibility to caller).
+      const cohort$ = grid$.flatMap(g => g[0][0]);
+      cohort$.subscribe(alive => console.log(alive));
+
       const nextState$ = tick$.map(_ => true);
       const state$ = initialState$.concat(nextState$);
           
@@ -53,12 +60,14 @@
         .timeInterval()
         .take(100)
 
-      const grid = cols
-        .map(_ => rows.map(_ => cellFactory(tick$))); 
 
-      const state$ = Rx.Observable
-        .zip(grid.map(rows => Rx.Observable.zip(...rows)));
+      const state$ = grid$.flatMap(grid => Rx.Observable
+        .zip(grid.map(rows => Rx.Observable.zip(...rows))));
         
+      grid$.onNext(cols.map(_ => rows.map(_ => cellFactory(tick$)))); 
+
+      state$.subscribe(s => console.log(s));
+
       return state$;
     };
 
@@ -73,7 +82,7 @@
     const world = worldFactory(25,25);
 
     world.subscribe(rows => {
-      console.log(rows);
+      //console.log(rows);
 
       ractive.set('rows', rows);
     }); 
