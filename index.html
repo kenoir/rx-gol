@@ -30,9 +30,9 @@
     </table> 
   </script>
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/rxjs/4.1.0/rx.all.js"></script>
-  <script src='http://cdn.ractivejs.org/latest/ractive.min.js'></script>
-  
+  <script src="./js/lib/rx.js"></script>
+  <script src="./js/lib/ractive.js"></script>
+ 
   <script>
     const grid$ = new Rx.ReplaySubject();
 
@@ -42,10 +42,20 @@
       // TODO: work out how to turn set of neighbours (which are observables)
       // into observable  counting alive cells in that cohort
       // also obvs we need the cell reference here to do so (or push this responsibility to caller).
-      const cohort$ = grid$.flatMap(g => g[0][0]);
-      cohort$.subscribe(alive => console.log(alive));
+      const aliveCount$ = grid$.flatMap(g => {
+        const cellsObservables = [g[0][0], g[1][1]];
+        const aliveCount = Rx.Observable
+          .zip(...cellsObservables)
+          .map(cells => cells
+            .reduce((memo,c) => Number(c) + memo, 0))
 
-      const nextState$ = tick$.map(_ => true);
+        return aliveCount;
+      });
+
+      const nextState$ = tick$
+        .flatMap(_ => aliveCount$
+          .map((_,count) => count >= 1));
+
       const state$ = initialState$.concat(nextState$);
           
       return state$;
@@ -59,7 +69,6 @@
         .interval(500)
         .timeInterval()
         .take(100)
-
 
       const state$ = grid$.flatMap(grid => Rx.Observable
         .zip(grid.map(rows => Rx.Observable.zip(...rows))));
